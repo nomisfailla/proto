@@ -2,25 +2,18 @@
 
 static size_t vga_textmode_row;
 static size_t vga_textmode_column;
-static uint8_t vga_textmode_color;
-static uint16_t* vga_textmode_buffer;
 
-static uint8_t make_color(terminal_color_t fg, terminal_color_t bg)
-{
-	return fg | bg << 4;
-}
+static terminal_color_t vga_textmode_bg;
+static terminal_color_t vga_textmode_fg;
 
-static uint16_t make_vgaentry(char c, uint8_t color)
-{
-	const uint16_t c16 = c;
-	const uint16_t color16 = color;
-	return c16 | color16 << 8;
-}
+static vga_text_cell_t* vga_textmode_buffer;
 
-static void put_char_at(char c, uint8_t color, size_t x, size_t y)
+static void put_char_at(char c, size_t x, size_t y)
 {
 	const size_t index = y * VGA_WIDTH + x;
-	vga_textmode_buffer[index] = make_vgaentry(c, color);
+	vga_textmode_buffer[index].chr = c;
+	vga_textmode_buffer[index].fg = vga_textmode_fg;
+	vga_textmode_buffer[index].bg = vga_textmode_bg;
 }
 
 static void update_cursor()
@@ -41,7 +34,7 @@ static void vga_textmode_putc(char c)
 	}
 	else
 	{
-		put_char_at(c, vga_textmode_color, vga_textmode_column, vga_textmode_row);
+		put_char_at(c, vga_textmode_column, vga_textmode_row);
 
 		if (++vga_textmode_column == VGA_WIDTH)
 		{
@@ -68,12 +61,13 @@ static void vga_textmode_puts(const char* str)
 
 static void vga_textmode_set_color(terminal_color_t fg, terminal_color_t bg)
 {
-	vga_textmode_color = make_color(fg, bg);
+	vga_textmode_fg = fg;
+	vga_textmode_bg = bg;
 }
 
 terminal_callbacks_t init_vga_textmode()
 {
-	vga_textmode_buffer = (uint16_t*) 0xB8000;
+	vga_textmode_buffer = (vga_text_cell_t*) 0xB8000;
 	vga_textmode_clear();
 
 	terminal_callbacks_t impl;
@@ -94,7 +88,9 @@ void vga_textmode_clear()
 		for (size_t x = 0; x < VGA_WIDTH; x++)
 		{
 			const size_t index = y * VGA_WIDTH + x;
-			vga_textmode_buffer[index] = make_vgaentry(' ', vga_textmode_color);
+			vga_textmode_buffer[index].chr = ' ';
+			vga_textmode_buffer[index].fg = vga_textmode_fg;
+			vga_textmode_buffer[index].bg = vga_textmode_bg;
 		}
 	}
 	
@@ -110,7 +106,9 @@ void vga_textmode_scroll()
 
 			if (y == VGA_HEIGHT) //Last line, make it blank
 			{
-				vga_textmode_buffer[index] = make_vgaentry(' ', vga_textmode_color);
+				vga_textmode_buffer[index].chr = ' ';
+				vga_textmode_buffer[index].fg = vga_textmode_fg;
+				vga_textmode_buffer[index].bg = vga_textmode_bg;
 			}
 			else
 			{
