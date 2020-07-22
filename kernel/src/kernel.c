@@ -6,7 +6,6 @@
 #include "cpu/idt.h"
 
 #include "mem/kmem.h"
-#include "mem/paging.h"
 
 #include "hal/serial.h"
 
@@ -35,7 +34,8 @@ void kmain(uint32_t mbootptr, uint32_t magic)
 	init_gdt();
 	init_idt();
 
-	init_paging();
+	// Enable interrupts once initialization is done.
+    asm volatile("sti");
 
     puts("Welcome to ");
     set_color(COLOR_CYAN, COLOR_BLACK);
@@ -78,13 +78,6 @@ void kmain(uint32_t mbootptr, uint32_t magic)
 	}
 	putc('\n');
     set_color(COLOR_LIGHT_GREY, COLOR_BLACK);
-
-	// Enable interrupts once initialization is done.
-    asm volatile("sti");
-
-	//uint32_t *ptr = (uint32_t*)0xA0000000;
-	//uint32_t do_page_fault = *ptr;
-	//printf("%d\n", do_page_fault);
 
 	for(;;);
 }

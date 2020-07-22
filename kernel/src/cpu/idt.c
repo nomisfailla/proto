@@ -1,6 +1,7 @@
 #include "idt.h"
 
 #include "../term/terminal.h"
+#include "../debug/debug.h"
 
 #define IDT_SIZE 256
 
@@ -76,6 +77,7 @@ void desc##_handler(registers_t regs)     \
 {                                         \
     ((void)regs);                         \
     puts(#desc);                          \
+    kdebug("exception: " #desc "\n");     \
     for(;;);                              \
 }                                         \
 
@@ -122,57 +124,7 @@ EXCEPTION_ENTRY_CODE(13, general_protection_fault)
 ERROR_STUB(13, general_protection_fault)
 
 EXCEPTION_ENTRY_CODE(14, page_fault)
-void page_fault_handler(registers_t regs)
-{
-    uint32_t faulting_address;
-    asm volatile("mov %%cr2, %0" : "=r" (faulting_address));
-
-    // The error code gives us details of what happened.
-    int present = !(regs.exception_code & 0x1);   // Page not present
-    int rw = regs.exception_code & 0x2;           // Write operation?
-    int us = regs.exception_code & 0x4;           // Processor was in user-mode?
-    int reserved = regs.exception_code & 0x8;     // Overwritten CPU-reserved bits of page entry?
-    int id = regs.exception_code & 0x10;          // Caused by an instruction fetch?
-
-    putc('\n');
-    set_color(COLOR_LIGHT_RED, COLOR_RED);
-    puts("! Page Fault !\n");
-    set_color(COLOR_LIGHT_GREY, COLOR_BLACK);
-    puts("at ");
-    set_color(COLOR_MAGENTA, COLOR_BLACK);
-    printf("0x%x\n", faulting_address);
-    set_color(COLOR_LIGHT_GREY, COLOR_BLACK);
-    if (present)  { puts("present\n");    }
-    if (rw)       { puts("read-only\n");  }
-    if (us)       { puts("user-mode\n");  }
-    if (reserved) { puts("reserved\n");   }
-    if (id)       { puts("inst-fetch\n"); }
-
-#define print_reg(r, end) \
-    set_color(COLOR_LIGHT_GREY, COLOR_BLACK); \
-    puts(#r ": "); \
-    set_color(COLOR_MAGENTA, COLOR_BLACK); \
-    printf("0x%x" end, regs.r);
-
-    print_reg(ss, " ");
-    print_reg(cs, "\n");
-    print_reg(gs, " ");
-    print_reg(fs, "\n");
-    print_reg(es, " ");
-    print_reg(ds, "\n");
-    print_reg(edi, " ");
-    print_reg(esi, "\n");
-    print_reg(ebp, " ");
-    print_reg(esp, "\n");
-    print_reg(ebx, " ");
-    print_reg(edx, "\n");
-    print_reg(ecx, " ");
-    print_reg(eax, "\n");
-    print_reg(eip, "\n");
-
-#undef print_reg
-    for(;;);
-}
+ERROR_STUB(13, page_fault)
 
 EXCEPTION_ENTRY(15, reserved_15)
 ERROR_STUB(15, reserved_15)
