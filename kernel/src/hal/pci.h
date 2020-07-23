@@ -65,10 +65,16 @@ typedef struct
 
     pci_class_t class;
     uint8_t subclass;
+    uint8_t header_type;
 
     uint8_t interrupt_line;
 
     uint32_t bar0;
+    uint32_t bar1;
+    uint32_t bar2;
+    uint32_t bar3;
+    uint32_t bar4;
+    uint32_t bar5;
 } pci_device_t;
 
 typedef void(*pci_enumerator_t)(pci_device_t);

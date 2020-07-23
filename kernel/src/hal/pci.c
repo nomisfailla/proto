@@ -63,8 +63,14 @@ static pci_device_t pci_read_device(const uint32_t bus, const uint32_t dev, cons
     const uint8_t class = pci_read8(id, PCI_CONFIG_CLASS_CODE);
     device.class = classify(class);
     device.subclass = pci_read8(id, PCI_CONFIG_SUBCLASS);
+    device.header_type = pci_read8(id, PCI_CONFIG_HEADER_TYPE);
     device.interrupt_line = pci_read8(id, PCI_CONFIG_INTERRUPT_LINE);
     device.bar0 = pci_read32(id, PCI_CONFIG_BAR0);
+    device.bar1 = pci_read32(id, PCI_CONFIG_BAR1);
+    device.bar2 = pci_read32(id, PCI_CONFIG_BAR2);
+    device.bar3 = pci_read32(id, PCI_CONFIG_BAR3);
+    device.bar4 = pci_read32(id, PCI_CONFIG_BAR4);
+    device.bar5 = pci_read32(id, PCI_CONFIG_BAR5);
 
     return device;
 }
