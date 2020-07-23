@@ -1,82 +1,90 @@
 #include "pci.h"
 
-#include "../term/terminal.h"
+#define PCI_ID(bus, dev, func) ((bus) << 16) | ((dev) << 11) | ((func) << 8)
 
-static uint16_t read_word(uint16_t bus, uint16_t slot, uint16_t func, uint16_t offset)
+static pci_class_t classify(uint8_t class)
 {
-    uint64_t lbus = bus;
-    uint64_t lslot = slot;
-    uint64_t lfunc = func;
-    uint16_t tmp = 0;
-    uint64_t address = (uint64_t)((lbus << 16) | (lslot << 11) | (lfunc << 8) | (offset & 0xfc) | ((uint32_t)0x80000000));
-    out32(0xCF8, address);
-    tmp = (uint16_t)((in32(0xCFC) >> ((offset & 2) * 8)) & 0xffff);
-    return (tmp);
+    switch(class)
+    {
+    case 0x00: return PCI_UNCLASSIFIED;
+    case 0x01: return PCI_MASS_STORAGE_CONTROLLER;
+    case 0x02: return PCI_NETWORK_CONTROLLER;
+    case 0x03: return PCI_DISPLAY_CONTROLLER;
+    case 0x04: return PCI_MULTIMEDIA_CONTROLLER;
+    case 0x05: return PCI_MEMORY_CONTROLLER;
+    case 0x06: return PCI_BRIDGE_DEVICE;
+    case 0x07: return PCI_SIMPLE_COMMUNICATION_CONTROLLER;
+    case 0x08: return PCI_BASE_SYSTEM_PERIPHERAL;
+    case 0x09: return PCI_INPUT_DEVICE_CONTROLLER;
+    case 0x0A: return PCI_DOCKING_STATION;
+    case 0x0B: return PCI_PROCESSOR;
+    case 0x0C: return PCI_SERIAL_BUS_CONTROLLER;
+    case 0x0D: return PCI_WIRELESS_CONTROLLER;
+    case 0x0E: return PCI_INTELLIGENT_CONTROLLER;
+    case 0x0F: return PCI_SATELLITE_COMMUNICATION_CONTROLLER;
+    case 0x10: return PCI_ENCRYPTION_CONTROLLER;
+    case 0x11: return PCI_SIGNAL_PROCESSING_CONTROLLER;
+    case 0x12: return PCI_PROCESSING_ACCELERATOR;
+    case 0x13: return PCI_NONESSENTIAL_INSTRUMENTATION;
+    case 0x40: return PCI_COPROCESSOR;
+    case 0xFF: return PCI_UNASSIGNED;
+    }
+    return PCI_UNCLASSIFIED;
 }
 
-static uint16_t get_vendor_id(uint16_t bus, uint16_t device, uint16_t function)
+static uint8_t pci_read8(const uint32_t id, const uint32_t reg)
 {
-    return read_word(bus, device, function, 0);
+    const uint32_t addr = 0x80000000 | id | (reg & 0xFC);
+    out32(PCI_CONFIG_ADDR, addr);
+    return in8(PCI_CONFIG_DATA + (reg & 0x03));
 }
 
-static uint16_t get_device_id(uint16_t bus, uint16_t device, uint16_t function)
+static uint16_t pci_read16(const uint32_t id, const uint32_t reg)
 {
-    return read_word(bus, device, function, 2);
+    const uint32_t addr = 0x80000000 | id | (reg & 0xFC);
+    out32(PCI_CONFIG_ADDR, addr);
+    return in16(PCI_CONFIG_DATA + (reg & 0x02));
 }
 
-static uint8_t get_class(uint16_t bus, uint16_t device, uint16_t function)
+static uint32_t pci_read32(const uint32_t id, const uint32_t reg)
 {
-    return (read_word(bus, device, function, 0xA) & ~0x00FF) >> 8;
+    const uint32_t addr = 0x80000000 | id | (reg & 0xFC);
+    out32(PCI_CONFIG_ADDR, addr);
+    return in32(PCI_CONFIG_DATA);
 }
 
-static uint8_t get_subclass(uint16_t bus, uint16_t device, uint16_t function)
+static pci_device_t pci_read_device(const uint32_t bus, const uint32_t dev, const uint32_t func)
 {
-    return (read_word(bus, device, function, 0xA) & ~0xFF00);
+    const uint32_t id = PCI_ID(bus, dev, func);
+
+    pci_device_t device;
+    device.vendor_id = pci_read16(id, PCI_CONFIG_VENDOR_ID);
+    device.device_id = pci_read16(id, PCI_CONFIG_DEVICE_ID);
+    const uint8_t class = pci_read8(id, PCI_CONFIG_CLASS_CODE);
+    device.class = classify(class);
+    device.subclass = pci_read8(id, PCI_CONFIG_SUBCLASS);
+    device.interrupt_line = pci_read8(id, PCI_CONFIG_INTERRUPT_LINE);
+    device.bar0 = pci_read32(id, PCI_CONFIG_BAR0);
+
+    return device;
 }
 
 void enumerate_pci(pci_enumerator_t enumerator)
 {
-    for(uint16_t bus = 0; bus < 256; bus++)
+    for(uint32_t bus = 0; bus < 256; bus++)
     {
-        for(uint16_t slot = 0; slot < 32; slot++)
+        for(uint32_t device = 0; device < 32; device++)
         {
-            for(uint16_t function = 0; function < 8; function++)
+            uint8_t header_type = pci_read8(PCI_ID(bus, device, 0), PCI_CONFIG_HEADER_TYPE);
+            uint32_t function_count = header_type & PCI_TYPE_MULTIFUNC ? 8 : 1;
+
+            for(uint16_t function = 0; function < function_count; function++)
             {
-                pci_device_t device;
-                device.vendor_id = get_vendor_id(bus, slot, function);
-                if(device.vendor_id == 0xFFFF) { continue; }
-                device.device_id = get_device_id(bus, slot, function);
-                device.subclass = get_subclass(bus, slot, function);
-
-                uint8_t class = get_class(bus, slot, function);
-                switch(class)
+                pci_device_t pci_device = pci_read_device(bus, device, function);
+                if(pci_device.vendor_id != 0xFFFF)
                 {
-                case 0x00: device.class = PCI_UNCLASSIFIED; break;
-                case 0x01: device.class = PCI_MASS_STORAGE_CONTROLLER; break;
-                case 0x02: device.class = PCI_NETWORK_CONTROLLER; break;
-                case 0x03: device.class = PCI_DISPLAY_CONTROLLER; break;
-                case 0x04: device.class = PCI_MULTIMEDIA_CONTROLLER; break;
-                case 0x05: device.class = PCI_MEMORY_CONTROLLER; break;
-                case 0x06: device.class = PCI_BRIDGE_DEVICE; break;
-                case 0x07: device.class = PCI_SIMPLE_COMMUNICATION_CONTROLLER; break;
-                case 0x08: device.class = PCI_BASE_SYSTEM_PERIPHERAL; break;
-                case 0x09: device.class = PCI_INPUT_DEVICE_CONTROLLER; break;
-                case 0x0A: device.class = PCI_DOCKING_STATION; break;
-                case 0x0B: device.class = PCI_PROCESSOR; break;
-                case 0x0C: device.class = PCI_SERIAL_BUS_CONTROLLER; break;
-                case 0x0D: device.class = PCI_WIRELESS_CONTROLLER; break;
-                case 0x0E: device.class = PCI_INTELLIGENT_CONTROLLER; break;
-                case 0x0F: device.class = PCI_SATELLITE_COMMUNICATION_CONTROLLER; break;
-                case 0x10: device.class = PCI_ENCRYPTION_CONTROLLER; break;
-                case 0x11: device.class = PCI_SIGNAL_PROCESSING_CONTROLLER; break;
-                case 0x12: device.class = PCI_PROCESSING_ACCELERATOR; break;
-                case 0x13: device.class = PCI_NONESSENTIAL_INSTRUMENTATION; break;
-                case 0x40: device.class = PCI_COPROCESSOR; break;
-                case 0xFF: device.class = PCI_UNASSIGNED; break;
-                default:   device.class = PCI_UNCLASSIFIED; break;
+                    enumerator(pci_device);
                 }
-
-                enumerator(device);
             }
         }
     }

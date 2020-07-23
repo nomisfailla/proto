@@ -3,8 +3,34 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #include "../cpu/ports.h"
+
+#define PCI_CONFIG_ADDR 0xCF8
+#define PCI_CONFIG_DATA 0xCFC
+
+#define PCI_TYPE_MULTIFUNC 0x80
+
+#define PCI_CONFIG_VENDOR_ID      0x00
+#define PCI_CONFIG_DEVICE_ID      0x02
+#define PCI_CONFIG_COMMAND        0x04
+#define PCI_CONFIG_PROG_IF        0x09
+#define PCI_CONFIG_SUBCLASS       0x0A
+#define PCI_CONFIG_CLASS_CODE     0x0B
+#define PCI_CONFIG_HEADER_TYPE    0x0E
+#define PCI_CONFIG_INTERRUPT_LINE 0x3C
+
+#define PCI_CONFIG_BAR0 0x10
+#define PCI_CONFIG_BAR1 0x14
+#define PCI_CONFIG_BAR2 0x18
+#define PCI_CONFIG_BAR3 0x1C
+#define PCI_CONFIG_BAR4 0x20
+#define PCI_CONFIG_BAR5 0x24
+
+#define PCI_BAR_IO     0x01
+#define PCI_BAR_LOWMEM 0x02
+#define PCI_BAR_64     0x04
 
 typedef enum
 {
@@ -39,6 +65,10 @@ typedef struct
 
     pci_class_t class;
     uint8_t subclass;
+
+    uint8_t interrupt_line;
+
+    uint32_t bar0;
 } pci_device_t;
 
 typedef void(*pci_enumerator_t)(pci_device_t);
