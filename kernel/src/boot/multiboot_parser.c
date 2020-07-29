@@ -45,9 +45,45 @@ static void parse_framebuffer(multiboot_capabilities_t* caps, struct multiboot_t
 	}
 }
 
-static void parse_cmdline(multiboot_capabilities_t* caps, struct multiboot_tag_string* tag)
+static void parse_basic_meminfo(multiboot_capabilities_t* caps, struct multiboot_tag_basic_meminfo* tag)
 {
-	
+	kdebug("Upper memory: %d KB\n", tag->mem_upper);
+	//const size_t highest_address = tag->mem_upper * 1024;
+}
+
+static void parse_memmap(multiboot_capabilities_t* caps, struct multiboot_tag_mmap* tag)
+{
+	kdebug("Memory map:\n");
+
+    for (multiboot_memory_map_t* mmap = ((struct multiboot_tag_mmap *) tag)->entries;
+		(multiboot_uint8_t *) mmap < (multiboot_uint8_t *) tag + tag->size;
+        mmap = (multiboot_memory_map_t *) ((unsigned long) mmap + ((struct multiboot_tag_mmap *) tag)->entry_size))
+	{
+		kdebug(" base_addr = 0x%x%x,"
+		        " length = 0x%x%x, type = ",
+		        (unsigned) (mmap->addr >> 32),
+		        (unsigned) (mmap->addr & 0xffffffff),
+		        (unsigned) (mmap->len >> 32),
+		        (unsigned) (mmap->len & 0xffffffff));
+		switch(mmap->type)
+		{
+		case MULTIBOOT_MEMORY_AVAILABLE:        kdebug("AVAILABLE\n"); break;
+		case MULTIBOOT_MEMORY_RESERVED:         kdebug("RESERVED\n"); break;
+		case MULTIBOOT_MEMORY_ACPI_RECLAIMABLE: kdebug("ACPI_RECLAIMABLE\n"); break;
+		case MULTIBOOT_MEMORY_NVS:              kdebug("NVS\n"); break;
+		case MULTIBOOT_MEMORY_BADRAM:           kdebug("BADRAM\n"); break;
+		}
+	}
+}
+
+static void parse_load_base_addr(multiboot_capabilities_t* caps, struct multiboot_tag_load_base_addr* tag)
+{
+	kdebug("Loaded at 0x%x\n", tag->load_base_addr);
+}
+
+static void parse_elf_sections(multiboot_capabilities_t* caps, struct multiboot_tag_elf_sections* tag)
+{
+	kdebug("%d elf sections\n", tag->num);
 }
 
 multiboot_capabilities_t parse_multiboot(uint32_t start_addr, uint32_t magic)
@@ -76,11 +112,8 @@ multiboot_capabilities_t parse_multiboot(uint32_t start_addr, uint32_t magic)
 		{
 		case MULTIBOOT_TAG_TYPE_BOOT_LOADER_NAME: kdebug("Unhandled tag BOOT_LOADER_NAME\n"); break;
 		case MULTIBOOT_TAG_TYPE_MODULE:           kdebug("Unhandled tag MODULE\n");           break;
-		case MULTIBOOT_TAG_TYPE_BASIC_MEMINFO:    kdebug("Unhandled tag BASIC_MEMINFO\n");    break;
 		case MULTIBOOT_TAG_TYPE_BOOTDEV:          kdebug("Unhandled tag BOOTDEV\n");          break;
-		case MULTIBOOT_TAG_TYPE_MMAP:             kdebug("Unhandled tag MMAP\n");             break;
 		case MULTIBOOT_TAG_TYPE_VBE:              kdebug("Unhandled tag VBE\n");              break;
-		case MULTIBOOT_TAG_TYPE_ELF_SECTIONS:     kdebug("Unhandled tag ELF_SECTIONS\n");     break;
 		case MULTIBOOT_TAG_TYPE_APM:              kdebug("Unhandled tag APM\n");              break;
 		case MULTIBOOT_TAG_TYPE_EFI32:            kdebug("Unhandled tag EFI32\n");            break;
 		case MULTIBOOT_TAG_TYPE_EFI64:            kdebug("Unhandled tag EFI64\n");            break;
@@ -92,9 +125,12 @@ multiboot_capabilities_t parse_multiboot(uint32_t start_addr, uint32_t magic)
 		case MULTIBOOT_TAG_TYPE_EFI_BS:           kdebug("Unhandled tag EFI_BS\n");           break;
 		case MULTIBOOT_TAG_TYPE_EFI32_IH:         kdebug("Unhandled tag EFI32_IH\n");         break;
 		case MULTIBOOT_TAG_TYPE_EFI64_IH:         kdebug("Unhandled tag EFI64_IH\n");         break;
-		case MULTIBOOT_TAG_TYPE_LOAD_BASE_ADDR:   kdebug("Unhandled tag LOAD_BASE_ADDR\n");   break;
-		case MULTIBOOT_TAG_TYPE_CMDLINE:          parse_cmdline    (&caps, (struct multiboot_tag_string*     )tag);  break;
-		case MULTIBOOT_TAG_TYPE_FRAMEBUFFER:      parse_framebuffer(&caps, (struct multiboot_tag_framebuffer*)tag); break;
+		case MULTIBOOT_TAG_TYPE_CMDLINE:          kdebug("Unhandled tag CMDLINE\n");          break;
+		case MULTIBOOT_TAG_TYPE_BASIC_MEMINFO:    parse_basic_meminfo (&caps, (struct multiboot_tag_basic_meminfo*)  tag); break;
+		case MULTIBOOT_TAG_TYPE_ELF_SECTIONS:     parse_elf_sections  (&caps, (struct multiboot_tag_elf_sections*)   tag); break;
+		case MULTIBOOT_TAG_TYPE_LOAD_BASE_ADDR:   parse_load_base_addr(&caps, (struct multiboot_tag_load_base_addr*) tag); break;
+		case MULTIBOOT_TAG_TYPE_MMAP:             parse_memmap        (&caps, (struct multiboot_tag_mmap*)           tag); break;
+		case MULTIBOOT_TAG_TYPE_FRAMEBUFFER:      parse_framebuffer   (&caps, (struct multiboot_tag_framebuffer*)    tag); break;
 		}
 	}
 

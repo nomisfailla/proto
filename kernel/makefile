@@ -2,7 +2,7 @@ KERNEL_DIR := kernel
 KERNEL_OUT := proto.knl
 
 CC = ~/opt/i686-elf-cross/bin/i686-elf-gcc
-CFLAGS = -ffreestanding -O3 -Wall -Werror -Wpedantic
+CFLAGS = -ffreestanding -O3 -Wall -Werror -Wextra -Wpedantic
 LDFLAGS = -nostdlib -lgcc -T $(KERNEL_DIR)/link.ld
 
 SRC := $(KERNEL_DIR)/src
