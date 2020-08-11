@@ -250,6 +250,7 @@ struct multiboot_tag_mmap
 	multiboot_uint32_t entry_version;
 	struct multiboot_mmap_entry entries[0];  
 };
+typedef struct multiboot_tag_mmap multiboot_tag_mmap_t;
 
 struct multiboot_vbe_info_block
 {

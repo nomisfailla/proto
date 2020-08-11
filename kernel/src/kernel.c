@@ -18,7 +18,7 @@
 
 void kernel_pci_enumerator(pci_device_t device)
 {
-    printf("%04x   %04x   %02x    %02x       ", device.vendor_id, device.device_id, device.class, device.subclass);
+    printf(" %04x   %04x   %02x    %02x       ", device.vendor_id, device.device_id, device.class, device.subclass);
 	switch(device.class)
     {
     case PCI_UNCLASSIFIED:                       printf("unclassified                      "); break;
@@ -66,10 +66,52 @@ void kmain(uint32_t mbootptr, uint32_t magic)
 	init_gdt();
 	init_idt();
 
+	kdebug("Highest address is: 0x%x\n", caps.memory.highest_address);
+	kdebug("Kernel is at 0x%x - 0x%x (%d bytes)\n",
+		caps.memory.kernel_base,
+		caps.memory.kernel_end,
+		caps.memory.kernel_end - caps.memory.kernel_base
+	);
+	kdebug("Multiboot is at: 0x%x - 0x%x (%d bytes)\n",
+		caps.memory.multiboot_base,
+		caps.memory.multiboot_end,
+		caps.memory.multiboot_end - caps.memory.multiboot_base
+	);
+
+    uint32_t bitset_length = caps.memory.highest_address / 0x1000;
+    uint32_t bitset_size = (((bitset_length - 1) / 32) + 1) * sizeof(uint32_t);
+    printf("Bitset length: %d\n", bitset_length);
+    printf("Bitset size: %d bytes\n", bitset_size);
+
+	set_color(COLOR_GREEN, COLOR_BLACK);
+    printf("Memory Map\n");
+    set_color(COLOR_DARK_GREY, COLOR_BLACK);
+    printf(" range                   type\n");
+    set_color(COLOR_LIGHT_GREY, COLOR_BLACK);
+    uint32_t entry_size = caps.memory.multiboot_memory_map->entry_size;
+    uint32_t table_size = caps.memory.multiboot_memory_map->size;
+    for (multiboot_memory_map_t* mmap = caps.memory.multiboot_memory_map->entries;
+		(multiboot_uint8_t*) mmap < (multiboot_uint8_t*)caps.memory.multiboot_memory_map + table_size;
+        mmap = (multiboot_memory_map_t*)((uint32_t) mmap + entry_size))
+	{
+        uint32_t addr_start = (unsigned) (mmap->addr & 0xffffffff);
+        uint32_t size = (unsigned) (mmap->len & 0xffffffff);
+        uint32_t addr_end = addr_start + size - 1;
+		printf(" 0x%08x - 0x%08x ", addr_start, addr_end);
+		switch(mmap->type)
+		{
+		case MULTIBOOT_MEMORY_AVAILABLE:        printf("available\n"); break;
+		case MULTIBOOT_MEMORY_RESERVED:         printf("reserved\n"); break;
+		case MULTIBOOT_MEMORY_ACPI_RECLAIMABLE: printf("acpi reclaimable\n"); break;
+		case MULTIBOOT_MEMORY_NVS:              printf("nvs\n"); break;
+		case MULTIBOOT_MEMORY_BADRAM:           printf("badram\n"); break;
+		}
+	}
+
 	set_color(COLOR_GREEN, COLOR_BLACK);
     printf("PCI Dump\n");
     set_color(COLOR_DARK_GREY, COLOR_BLACK);
-    printf("vendor device class subclass description\n");
+    printf(" vendor device class subclass description\n");
     set_color(COLOR_LIGHT_GREY, COLOR_BLACK);
 	enumerate_pci(kernel_pci_enumerator);
 	printf("\n");
