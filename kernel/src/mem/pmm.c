@@ -85,6 +85,10 @@ void init_pmm(multiboot_capabilities_t* caps)
         {
             SET_BIT(i / PAGE_SIZE);
         }
+        else
+        {
+            CLEAR_BIT(i / PAGE_SIZE);
+        }
     }
 }
 
