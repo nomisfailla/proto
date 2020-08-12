@@ -5,7 +5,7 @@
 #include "cpu/gdt.h"
 #include "cpu/idt.h"
 
-#include "mem/kmem.h"
+#include "mem/pmm.h"
 
 #include "hal/serial.h"
 #include "hal/pci.h"
@@ -65,23 +65,35 @@ void kmain(uint32_t mbootptr, uint32_t magic)
 
 	init_gdt();
 	init_idt();
+	init_pmm(&caps);
 
-	kdebug("Highest address is: 0x%x\n", caps.memory.highest_address);
-	kdebug("Kernel is at 0x%x - 0x%x (%d bytes)\n",
-		caps.memory.kernel_base,
-		caps.memory.kernel_end,
-		caps.memory.kernel_end - caps.memory.kernel_base
-	);
-	kdebug("Multiboot is at: 0x%x - 0x%x (%d bytes)\n",
-		caps.memory.multiboot_base,
-		caps.memory.multiboot_end,
-		caps.memory.multiboot_end - caps.memory.multiboot_base
-	);
+	{
+		uint32_t f = pmm_alloc_frame();
+		uint32_t addr = f * PAGE_SIZE;
 
-    uint32_t bitset_length = caps.memory.highest_address / 0x1000;
-    uint32_t bitset_size = (((bitset_length - 1) / 32) + 1) * sizeof(uint32_t);
-    printf("Bitset length: %d\n", bitset_length);
-    printf("Bitset size: %d bytes\n", bitset_size);
+		char* str = (char*)addr;
+		str[0] = 'H';
+		str[1] = 'i';
+		str[2] = '!';
+		str[3] = '\0';
+
+		uint32_t t = pmm_alloc_frame();
+		pmm_free_frame(f);
+		pmm_free_frame(t);
+		pmm_free_frame(pmm_alloc_frame());
+	}
+
+	{
+		// Should allocate the frame from before.
+		uint32_t f = pmm_alloc_frame();
+		uint32_t addr = f * PAGE_SIZE;
+
+		char* str = (char*)addr;
+
+		printf("'%s'\n", str);
+
+		pmm_free_frame(f);
+	}
 
 	set_color(COLOR_GREEN, COLOR_BLACK);
     printf("Memory Map\n");
@@ -146,20 +158,20 @@ void kmain(uint32_t mbootptr, uint32_t magic)
     set_color(COLOR_LIGHT_GREY, COLOR_BLACK);
 	puts(".\n");
 
-	puts("Color test;\n");
-	for(int y = 0; y < 16; y++)
-	{
-		set_color(COLOR_BLACK, y);
-		putc(' ');
-	}
-	putc('\n');
-	for(int y = 0; y < 16; y++)
-	{
-		set_color(y, COLOR_BLACK);
-		putc('@');
-	}
-	putc('\n');
-    set_color(COLOR_LIGHT_GREY, COLOR_BLACK);
-
+	//puts("Color test;\n");
+	//for(int y = 0; y < 16; y++)
+	//{
+	//	set_color(COLOR_BLACK, y);
+	//	putc(' ');
+	//}
+	//putc('\n');
+	//for(int y = 0; y < 16; y++)
+	//{
+	//	set_color(y, COLOR_BLACK);
+	//	putc('@');
+	//}
+	//putc('\n');
+    //set_color(COLOR_LIGHT_GREY, COLOR_BLACK);
+	
 	for(;;);
 }

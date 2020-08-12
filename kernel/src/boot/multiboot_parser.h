@@ -30,6 +30,19 @@ typedef struct
 
 typedef struct
 {
+	uint32_t kernel_base;
+	uint32_t kernel_end;
+
+	uint32_t multiboot_base;
+	uint32_t multiboot_end;
+
+	uint32_t highest_address;
+
+	multiboot_tag_mmap_t* multiboot_memory_map;
+} memory_info_t;
+
+typedef struct
+{
 	struct
 	{
 		framebuffer_type_t type;
@@ -50,18 +63,7 @@ typedef struct
 		bool using_bga;
 	} framebuffer;
 
-	struct
-	{
-		uint32_t kernel_base;
-		uint32_t kernel_end;
-
-		uint32_t multiboot_base;
-		uint32_t multiboot_end;
-
-		uint32_t highest_address;
-
-		multiboot_tag_mmap_t* multiboot_memory_map;
-	} memory;
+	memory_info_t memory;
 } multiboot_capabilities_t;
 
 multiboot_capabilities_t parse_multiboot(uint32_t start_addr, uint32_t magic);
